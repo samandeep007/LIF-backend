@@ -1,0 +1,118 @@
+import bcrypt from 'bcrypt';
+import multer from 'multer';
+import { User, ApiError, apiResponse, uploadToCloudinary, deleteTempFile } from '../lib/index.js';
+
+// Multer setup for temporary file storage
+const storage = multer.diskStorage({
+  destination: 'public/temp',
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+const upload = multer({ storage }).single('photo');
+
+const getProfile = async (req, res) => {
+  const user = await User.findById(req.userId).select('-password -verificationToken -resetPasswordToken -resetPasswordExpires');
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+  apiResponse(res, 200, user, 'Profile fetched successfully');
+};
+
+const editProfile = async (req, res) => {
+  const { name, age, gender, bio } = req.body;
+
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Update fields if provided
+  if (name) user.name = name;
+  if (age) user.age = age;
+  if (gender) user.gender = gender;
+  if (bio) user.bio = bio;
+
+  await user.save();
+
+  const updatedUser = user.toObject();
+  delete updatedUser.password;
+  delete updatedUser.verificationToken;
+  delete updatedUser.resetPasswordToken;
+  delete updatedUser.resetPasswordExpires;
+
+  apiResponse(res, 200, updatedUser, 'Profile updated successfully');
+};
+
+const changePassword = async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    throw new ApiError(400, 'Incorrect old password');
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  apiResponse(res, 200, null, 'Password changed successfully');
+};
+
+const deleteProfile = async (req, res) => {
+  const user = await User.findByIdAndDelete(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Note: In a full implementation, we'd also delete related data (matches, messages, etc.)
+  apiResponse(res, 200, null, 'Profile deleted successfully');
+};
+
+const addPhoto = async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  if (user.photos.length >= 9) {
+    throw new ApiError(400, 'Maximum 9 photos allowed');
+  }
+
+  // Upload to Cloudinary
+  const photoUrl = await uploadToCloudinary(req.file.path);
+
+  // Delete temp file
+  await deleteTempFile(req.file.path);
+
+  // Add photo to user
+  user.photos.push({ url: photoUrl, caption: req.body.caption || '' });
+  await user.save();
+
+  apiResponse(res, 200, { url: photoUrl }, 'Photo added successfully');
+};
+
+const deletePhoto = async (req, res) => {
+  const { photoId } = req.params;
+
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  const photoIndex = user.photos.findIndex(photo => photo._id.toString() === photoId);
+  if (photoIndex === -1) {
+    throw new ApiError(404, 'Photo not found');
+  }
+
+  user.photos.splice(photoIndex, 1);
+  await user.save();
+
+  apiResponse(res, 200, null, 'Photo deleted successfully');
+};
+
+export { getProfile, editProfile, changePassword, deleteProfile, upload, addPhoto, deletePhoto };

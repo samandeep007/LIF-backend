@@ -1,0 +1,1059 @@
+openapi: 3.0.0
+info:
+  title: Love Is Free (L.I.F) API
+  version: 1.0.0
+  description: Backend API for the L.I.F dating app, providing features like user authentication, profile management, swipes, chats, calls, confessions, notifications, stats, and safety guidelines.
+  contact:
+    name: API Support
+    email: support@loveisfree.app
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, description: User ID }
+        email: { type: string, description: User email }
+        name: { type: string, description: User name }
+        age: { type: integer, description: User age }
+        gender: { type: string, description: User gender }
+        bio: { type: string, description: User bio }
+        photos: { type: array, items: { type: object, properties: { url: { type: string }, caption: { type: string } } }, description: User photos }
+        isVerified: { type: boolean, description: Verification status }
+    Message:
+      type: object
+      properties:
+        matchId: { type: string, description: Match ID }
+        senderId: { type: string, description: Sender ID }
+        content: { type: string, description: Message content (text or image URL) }
+        isImage: { type: boolean, description: Whether the message is an image }
+        createdAt: { type: string, format: date-time, description: Message creation time }
+        readStatus: { type: boolean, description: Whether the message has been read }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, description: Notification ID }
+        userId: { type: string, description: User  User ID }
+        type: { type: string, enum: ['new_match', 'new_message', 'call_initiated', 'confession_received'], description: Notification type }
+        content: { type: string, description: Notification content }
+        metadata: { type: object, description: Additional metadata (e.g., matchId, senderId) }
+        readStatus: { type: boolean, description: Whether the notification has been read }
+        createdAt: { type: string, format: date-time, description: Notification creation time }
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name, age, gender]
+              properties:
+                email: { type: string, format: email, description: User email }
+                password: { type: string, minLength: 6, description: User password }
+                name: { type: string, description: User name }
+                age: { type: integer, minimum: 18, description: User age }
+                gender: { type: string, description: User gender }
+      responses:
+        '201':
+          description: Registration successful, check email for verification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Email already in use or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/auth/verify/{token}:
+    get:
+      summary: Verify user email
+      tags: [Authentication]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+          description: Verification token sent to the user's email
+      responses:
+        '200':
+          description: Email verified successfully, returns JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { token: { type: string } } }
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/auth/login:
+    post:
+      summary: Login a user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, description: User email }
+                password: { type: string, description: User password }
+      responses:
+        '200':
+          description: Login successful, returns JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { token: { type: string } } }
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '403':
+          description: Email not verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/auth/forgot-password:
+    post:
+      summary: Request password reset
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, description: User email }
+      responses:
+        '200':
+          description: Password reset link sent to email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/auth/reset-password/{token}:
+    post:
+      summary: Reset password
+      tags: [Authentication]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+          description: Password reset token sent to the user's email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 6, description: New password }
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/users/me:
+    get:
+      summary: Get user profile
+      tags: [User]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/User' }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+    put:
+      summary: Edit user profile
+      tags: [User]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, description: User name }
+                age: { type: integer, minimum: 18, description: User age }
+                gender: { type: string, description: User gender }
+                bio: { type: string, maxLength: 500, description: User bio }
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/User' }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+    delete:
+      summary: Delete user profile
+      tags: [User]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/users/me/password:
+    put:
+      summary: Change user password
+      tags: [User]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword: { type: string, description: Current password }
+                newPassword: { type: string, minLength: 6, description: New password }
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Incorrect old password or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/users/photos:
+    post:
+      summary: Add a photo to user profile
+      tags: [User]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary, description: Photo file }
+                caption: { type: string, description: Photo caption (optional) }
+      responses:
+        '200':
+          description: Photo added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { url: { type: string } } }
+        '400':
+          description: Maximum photos reached
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/users/photos/{photoId}:
+    delete:
+      summary: Delete a photo from user profile
+      tags: [User]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: photoId
+          required: true
+          schema: { type: string }
+          description: Photo ID to delete
+      responses:
+        '200':
+          description: Photo deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '404':
+          description: User or photo not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/potential-matches:
+    get:
+      summary: Get potential matches
+      tags: [Swipes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of potential matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: array, items: { $ref: '#/components/schemas/User' } }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/swipes:
+    post:
+      summary: Record a swipe
+      tags: [Swipes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetId, direction]
+              properties:
+                targetId: { type: string, description: Target user ID }
+                direction: { type: string, enum: ['like', 'pass', 'swipe_up'], description: Swipe direction }
+      responses:
+        '200':
+          description: Swipe recorded or match created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { swipeId: { type: string, nullable: true }, matchId: { type: string, nullable: true } } }
+        '400':
+          description: Invalid direction or already swiped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Target user not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/swipes/undo/{swipeId}:
+    post:
+      summary: Undo a swipe
+      tags: [Swipes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: swipeId
+          required: true
+          schema: { type: string }
+          description: Swipe ID to undo
+      responses:
+        '200':
+          description: Swipe undone successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Cannot undo a mutual match
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Swipe not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/chats:
+    get:
+      summary: Get chat inbox
+      tags: [Chats]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of chats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: array, items: { type: object, properties: { matchId: { type: string }, otherUser: { type: object, properties: { id: { type: string }, name: { type: string }, photo: { type: string } } }, lastMessage: { type: object, nullable: true, properties: { content: { type: string }, createdAt: { type: string, format: date-time } } }, unreadCount: { type: integer } } } }
+  /api/chats/{matchId}/messages:
+    get:
+      summary: Get messages for a match
+      tags: [Chats]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema: { type: string }
+          description: Match ID
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/chats/message:
+    post:
+      summary: Send a text message
+      tags: [Chats]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [matchId, content]
+              properties:
+                matchId: { type: string, description: Match ID }
+                content: { type: string, description: Message content }
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Message' }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/chats/image-message:
+    post:
+      summary: Send an image message
+      tags: [Chats]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [matchId, image]
+              properties:
+                matchId: { type: string, description: Match ID }
+                image: { type: string, format: binary, description: Image file }
+      responses:
+        '200':
+          description: Image message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Message' }
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/chats/{matchId}:
+    delete:
+      summary: Delete a chat
+      tags: [Chats]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema: { type: string }
+          description: Match ID
+      responses:
+        '200':
+          description: Chat deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/calls/initiate:
+    post:
+      summary: Initiate a call
+      tags: [Calls]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [matchId, type]
+              properties:
+                matchId: { type: string, description: Match ID }
+                type: { type: string, enum: ['audio', 'video'], description: Call type }
+      responses:
+        '200':
+          description: Call initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { callId: { type: string } } }
+        '400':
+          description: Invalid call type or call in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/calls/status/{matchId}:
+    get:
+      summary: Get call status
+      tags: [Calls]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: matchId
+          required: true
+          schema: { type: string }
+          description: Match ID
+      responses:
+        '200':
+          description: Call status fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { status: { type: string, enum: ['pending', 'active', 'ended'] }, type: { type: string, enum: ['audio', 'video'] }, initiatorId: { type: string }, receiverId: { type: string }, startTime: { type: string, format: date-time, nullable: true }, endTime: { type: string, format: date-time, nullable: true } } }
+        '400':
+          description: Invalid match ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Match or call not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/calls/end/{callId}:
+    post:
+      summary: End a call
+      tags: [Calls]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: callId
+          required: true
+          schema: { type: string }
+          description: Call ID
+      responses:
+        '200':
+          description: Call ended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Invalid call ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Call not found, already ended, or not initiator
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/confessions:
+    post:
+      summary: Send a confession
+      tags: [Confessions]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 500, description: Confession content }
+      responses:
+        '200':
+          description: Confession sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { confessionId: { type: string } } }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/confessions/random:
+    get:
+      summary: Get a random confession
+      tags: [Confessions]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Random confession fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { content: { type: string } } }
+        '404':
+          description: No confessions available
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/notifications:
+    get:
+      summary: Get notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: unreadOnly
+          schema: { type: string, enum: ['true', 'false'] }
+          description: Filter for unread notifications only
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+    delete:
+      summary: Clear all notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notifications cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+  /api/notifications/{id}/read:
+    put:
+      summary: Mark notification as read
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          description: Notification ID
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, nullable: true }
+        '400':
+          description: Invalid notification ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/stats/ghosting:
+    get:
+      summary: Get ghosting stats
+      tags: [Stats]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ghosting stats fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { averageResponseTime: { type: string, description: Average response time in hours }, ghostedCount: { type: integer, description: Number of matches ghosted }, totalMatches: { type: integer, description: Total number of matches } } }
+  /api/verify/selfie:
+    post:
+      summary: Verify user with a selfie
+      tags: [Safety]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [selfie]
+              properties:
+                selfie: { type: string, format: binary, description: Selfie image file }
+      responses:
+        '200':
+          description: Selfie verification completed (placeholder)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: object, properties: { selfieUrl: { type: string } } }
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/safety/guidelines:
+    get:
+      summary: Get meeting safety guidelines
+      tags: [Safety]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Safety guidelines fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data: { type: array, items: { type: string } }
