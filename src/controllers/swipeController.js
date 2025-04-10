@@ -15,7 +15,8 @@ const getPotentialMatches = async (req, res) => {
     age: {
       $gte: user.filterPreferences.ageRange.min,
       $lte: user.filterPreferences.ageRange.max
-    }
+    },
+    photos: { $exists: true, $ne: [] } // Ensure the user has at least one photo
   };
 
   if (user.filterPreferences.seekingGender !== 'any') {
@@ -39,7 +40,7 @@ const getPotentialMatches = async (req, res) => {
   }
 
   const matches = await User.find(query)
-    .select('name age gender bio photos')
+    .select('name age gender bio photos selfie') // Added selfie to the selected fields
     .limit(10);
 
   apiResponse(res, 200, matches, 'Potential matches fetched successfully');
@@ -65,9 +66,10 @@ const swipe = async (req, res) => {
 
   const swipe = new Swipe({ userId, targetId, direction });
   await swipe.save();
+  console.log(`Swipe recorded: user ${userId} swiped ${direction} on user ${targetId}`);
 
   if (direction === 'pass' || direction === 'swipe_up') {
-    apiResponse(res, 200, { swipeId: swipe._id }, `Swipe (${direction}) recorded`);
+    apiResponse(res, 200, { swipeId: swipe._id, isMatch: false }, `Swipe (${direction}) recorded`);
     return;
   }
 
@@ -97,9 +99,9 @@ const swipe = async (req, res) => {
     emitToUser(targetId.toString(), 'new_notification', notification1);
     emitToUser(userId.toString(), 'new_notification', notification2);
 
-    apiResponse(res, 200, { matchId: match._id }, 'Match created');
+    apiResponse(res, 200, { matchId: match._id, isMatch: true }, 'Match created');
   } else {
-    apiResponse(res, 200, { swipeId: swipe._id }, 'Swipe recorded');
+    apiResponse(res, 200, { swipeId: swipe._id, isMatch: false }, 'Swipe recorded');
   }
 };
 
