@@ -29,7 +29,7 @@ const editProfile = async (req, res) => {
   if (bio) user.bio = bio;
 
   await user.save();
-  console.log('User after bio update:', user); // Debug log
+  console.log('User after bio update:', user);
 
   const updatedUser = user.toObject();
   delete updatedUser.password;
@@ -89,11 +89,22 @@ const addPhoto = async (req, res) => {
   // Since we're using memoryStorage, the file is in req.file.buffer
   // Upload to Cloudinary directly from buffer
   const photoUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+  console.log('Photo uploaded to Cloudinary:', photoUrl);
 
   // Add photo to user
   user.photos.push({ url: photoUrl, caption: req.body.caption || '' });
-  await user.save();
-  console.log('User after photo update:', user); // Debug log
+  console.log('Photos array before save:', user.photos);
+
+  try {
+    await user.save();
+    console.log('User after save:', user);
+    // Fetch the user again from the database to confirm the update
+    const updatedUser = await User.findById(req.userId);
+    console.log('User fetched from database after save:', updatedUser);
+  } catch (error) {
+    console.error('Error saving user:', error);
+    throw new ApiError(500, 'Failed to save photo to user profile');
+  }
 
   apiResponse(res, 200, { url: photoUrl }, 'Photo added successfully');
 };
