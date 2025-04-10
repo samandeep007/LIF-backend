@@ -8,7 +8,27 @@ const router = Router();
 const validateEditProfile = [
   check('name').optional().notEmpty().withMessage('Name cannot be empty'),
   check('age').optional().isInt({ min: 18 }).withMessage('Age must be a number and at least 18'),
-  check('bio').optional().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters')
+  check('bio').optional().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters'),
+  check('filterPreferences.ageRange.min')
+    .optional()
+    .isInt({ min: 18 })
+    .withMessage('Minimum age must be at least 18'),
+  check('filterPreferences.ageRange.max')
+    .optional()
+    .isInt({ max: 100 })
+    .withMessage('Maximum age cannot exceed 100'),
+  check('filterPreferences.maxDistance')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Max distance must be at least 1 km'),
+  check('filterPreferences.seekingGender')
+    .optional()
+    .isIn(['male', 'female', 'any'])
+    .withMessage('Seeking gender must be "male", "female", or "any"'),
+  check('filterPreferences.relationshipType')
+    .optional()
+    .isIn(['casual', 'serious', 'any'])
+    .withMessage('Relationship type must be "casual", "serious", or "any"'),
 ];
 
 const validateChangePassword = [

@@ -15,7 +15,7 @@ const getProfile = async (req, res) => {
 };
 
 const editProfile = async (req, res) => {
-  const { name, age, gender, bio } = req.body;
+  const { name, age, gender, bio, filterPreferences } = req.body;
 
   const user = await User.findById(req.userId);
   if (!user) {
@@ -28,8 +28,19 @@ const editProfile = async (req, res) => {
   if (gender) user.gender = gender;
   if (bio) user.bio = bio;
 
+  // Update filterPreferences if provided
+  if (filterPreferences) {
+    if (filterPreferences.ageRange) {
+      if (filterPreferences.ageRange.min) user.filterPreferences.ageRange.min = filterPreferences.ageRange.min;
+      if (filterPreferences.ageRange.max) user.filterPreferences.ageRange.max = filterPreferences.ageRange.max;
+    }
+    if (filterPreferences.maxDistance) user.filterPreferences.maxDistance = filterPreferences.maxDistance;
+    if (filterPreferences.seekingGender) user.filterPreferences.seekingGender = filterPreferences.seekingGender;
+    if (filterPreferences.relationshipType) user.filterPreferences.relationshipType = filterPreferences.relationshipType;
+  }
+
   await user.save();
-  console.log('User after bio update:', user);
+  console.log('User after update:', user);
 
   const updatedUser = user.toObject();
   delete updatedUser.password;
