@@ -32,7 +32,7 @@ const getChats = async (req, res) => {
         otherUser: {
           id: otherUser._id,
           name: otherUser.name,
-          photo: otherUser.photos[0]?.url || ''
+          photo: otherUser.selfie || ''
         },
         lastMessage: lastMessage ? { content: lastMessage.content, createdAt: lastMessage.createdAt, isImage: lastMessage.isImage } : null,
         unreadCount
