@@ -7,18 +7,24 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage }).single('photo');
 
 const getProfile = async (req, res) => {
+  console.log(`Received GET request to /api/users/me for userId: ${req.userId}`);
   const user = await User.findById(req.userId).select('-password -verificationToken -resetPasswordToken -resetPasswordExpires');
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
+  console.log('User profile fetched successfully:', user);
   apiResponse(res, 200, user, 'Profile fetched successfully');
 };
 
 const editProfile = async (req, res) => {
+  console.log(`Received PUT request to /api/users/me for userId: ${req.userId}`);
+  console.log('Request body:', req.body);
   const { name, age, gender, bio, filterPreferences } = req.body;
 
   const user = await User.findById(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
@@ -30,6 +36,7 @@ const editProfile = async (req, res) => {
 
   // Update filterPreferences if provided
   if (filterPreferences) {
+    console.log('Updating filterPreferences:', filterPreferences);
     if (filterPreferences.ageRange) {
       if (filterPreferences.ageRange.min) user.filterPreferences.ageRange.min = filterPreferences.ageRange.min;
       if (filterPreferences.ageRange.max) user.filterPreferences.ageRange.max = filterPreferences.ageRange.max;
@@ -48,45 +55,57 @@ const editProfile = async (req, res) => {
   delete updatedUser.resetPasswordToken;
   delete updatedUser.resetPasswordExpires;
 
+  console.log('Sending updated user profile:', updatedUser);
   apiResponse(res, 200, updatedUser, 'Profile updated successfully');
 };
 
 const changePassword = async (req, res) => {
+  console.log(`Received PUT request to /api/users/me/password for userId: ${req.userId}`);
+  console.log('Request body:', req.body);
   const { oldPassword, newPassword } = req.body;
 
   const user = await User.findById(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
   const isMatch = await bcrypt.compare(oldPassword, user.password);
   if (!isMatch) {
+    console.log('Incorrect old password');
     throw new ApiError(400, 'Incorrect old password');
   }
 
   user.password = await bcrypt.hash(newPassword, 10);
   await user.save();
+  console.log('Password changed successfully for userId:', userId);
 
   apiResponse(res, 200, null, 'Password changed successfully');
 };
 
 const deleteProfile = async (req, res) => {
+  console.log(`Received DELETE request to /api/users/me for userId: ${req.userId}`);
   const user = await User.findByIdAndDelete(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
-  // Note: In a full implementation, we'd also delete related data (matches, messages, etc.)
+  console.log('User profile deleted successfully for userId:', req.userId);
   apiResponse(res, 200, null, 'Profile deleted successfully');
 };
 
 const addPhoto = async (req, res) => {
+  console.log(`Received POST request to /api/users/photos for userId: ${req.userId}`);
+  console.log('Request body:', req.body);
   const user = await User.findById(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
   if (user.photos.length >= 9) {
+    console.log('Maximum 9 photos allowed');
     throw new ApiError(400, 'Maximum 9 photos allowed');
   }
 
@@ -94,6 +113,7 @@ const addPhoto = async (req, res) => {
   console.log('Received body:', req.body);
 
   if (!req.file) {
+    console.log('No photo uploaded');
     throw new ApiError(400, 'No photo uploaded');
   }
 
@@ -124,38 +144,46 @@ const addPhoto = async (req, res) => {
     throw new ApiError(500, 'Failed to save photo to user profile: ' + error.message);
   }
 
+  console.log('Photo added successfully:', { url: photoUrl });
   apiResponse(res, 200, { url: photoUrl }, 'Photo added successfully');
 };
 
 const deletePhoto = async (req, res) => {
+  console.log(`Received DELETE request to /api/users/photos/${req.params.photoId} for userId: ${req.userId}`);
   const { photoId } = req.params;
 
   const user = await User.findById(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
   const photoIndex = user.photos.findIndex(photo => photo._id.toString() === photoId);
   if (photoIndex === -1) {
+    console.log('Photo not found');
     throw new ApiError(404, 'Photo not found');
   }
 
   user.photos.splice(photoIndex, 1);
   await user.save();
+  console.log('Photo deleted successfully, updated user:', user);
 
   apiResponse(res, 200, null, 'Photo deleted successfully');
 };
 
 const updateProfilePic = async (req, res) => {
+  console.log(`Received POST request to /api/users/profile-pic for userId: ${req.userId}`);
+  console.log('Request body:', req.body);
   const user = await User.findById(req.userId);
   if (!user) {
+    console.log('User not found');
     throw new ApiError(404, 'User not found');
   }
 
   console.log('Received file:', req.file);
-  console.log('Received body:', req.body);
 
   if (!req.file) {
+    console.log('No photo uploaded');
     throw new ApiError(400, 'No photo uploaded');
   }
 
@@ -181,6 +209,7 @@ const updateProfilePic = async (req, res) => {
     throw new ApiError(500, 'Failed to save profile picture to user profile: ' + error.message);
   }
 
+  console.log('Profile picture updated successfully:', { selfieUrl: photoUrl });
   apiResponse(res, 200, { selfieUrl: photoUrl }, 'Profile picture updated successfully');
 };
 
