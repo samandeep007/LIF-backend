@@ -1,4 +1,4 @@
-import { Match, Message, User, Notification, ApiError, apiResponse, uploadToCloudinary, deleteTempFile, emitToUser } from '../lib/index.js';
+import { Match, Message, User, Notification, ApiError, apiResponse, emitToChat, emitToUser } from '../lib/index.js';
 import multer from 'multer';
 
 const storage = multer.diskStorage({
@@ -103,7 +103,7 @@ const sendMessage = async (req, res) => {
   });
 
   // Emit real-time events
-  emitToUser(receiverId.toString(), 'new_message', message);
+  emitToChat(matchId.toString(), 'new_message', message); // Emit to chat room
   emitToUser(receiverId.toString(), 'new_notification', notification);
 
   apiResponse(res, 200, message, 'Message sent successfully');
@@ -143,7 +143,7 @@ const sendImageMessage = async (req, res) => {
   });
 
   // Emit real-time events
-  emitToUser(receiverId.toString(), 'new_message', message);
+  emitToChat(matchId.toString(), 'new_message', message); // Emit to chat room
   emitToUser(receiverId.toString(), 'new_notification', notification);
 
   apiResponse(res, 200, message, 'Image message sent successfully');

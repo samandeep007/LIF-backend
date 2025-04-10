@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import { Message } from '../lib/index.js';
 
 let io;
 
@@ -34,6 +35,33 @@ const initSocket = (server) => {
     // Join a room for the user
     socket.join(socket.userId);
 
+    // Join chat rooms for all active matches
+    socket.on('join_chats', async (matchIds) => {
+      matchIds.forEach(matchId => {
+        socket.join(`chat:${matchId}`);
+      });
+      console.log(`User ${socket.userId} joined chat rooms:`, matchIds);
+    });
+
+    // Handle typing indicator
+    socket.on('typing', ({ matchId, isTyping }) => {
+      socket.to(`chat:${matchId}`).emit('typing', { userId: socket.userId, isTyping });
+    });
+
+    // Handle read receipt
+    socket.on('read_message', async ({ messageId, matchId }) => {
+      try {
+        const message = await Message.findById(messageId);
+        if (message && message.matchId.toString() === matchId) {
+          message.readStatus = true;
+          await message.save();
+          socket.to(`chat:${matchId}`).emit('message_read', { messageId });
+        }
+      } catch (error) {
+        console.error('Error marking message as read:', error);
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.userId}`);
     });
@@ -47,4 +75,11 @@ const emitToUser = (userId, event, data) => {
   }
 };
 
-export { initSocket, emitToUser };
+// Emit an event to a specific chat room
+const emitToChat = (matchId, event, data) => {
+  if (io) {
+    io.to(`chat:${matchId}`).emit(event, data);
+  }
+};
+
+export { initSocket, emitToUser, emitToChat };
