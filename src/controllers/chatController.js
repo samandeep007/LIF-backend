@@ -19,7 +19,7 @@ const getChats = async (req, res) => {
 
       const lastMessage = await Message.findOne({ matchId: match._id })
         .sort({ createdAt: -1 })
-        .select('content createdAt isImage'); // Add isImage to the selected fields
+        .select('content createdAt isImage');
 
       const unreadCount = await Message.countDocuments({
         matchId: match._id,
@@ -43,10 +43,9 @@ const getChats = async (req, res) => {
   apiResponse(res, 200, chats, 'Chats fetched successfully');
 };
 
-// ... (rest of the file remains unchanged)
-
 const getMessages = async (req, res) => {
   const { matchId } = req.params;
+  const { page = 1, limit = 50 } = req.query; // Add pagination parameters
   const userId = req.userId;
 
   const match = await Match.findOne({
@@ -64,8 +63,13 @@ const getMessages = async (req, res) => {
   );
 
   const messages = await Message.find({ matchId })
-    .sort({ createdAt: 1 })
-    .limit(50);
+    .sort({ createdAt: -1 }) // Sort descending to get newest first
+    .skip((page - 1) * limit)
+    .limit(parseInt(limit))
+    .lean();
+
+  // Reverse messages to display oldest first in the UI
+  messages.reverse();
 
   apiResponse(res, 200, messages, 'Messages fetched successfully');
 };
@@ -166,6 +170,36 @@ const sendImageMessage = async (req, res) => {
   }
 };
 
+const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      throw new ApiError(404, 'Message not found');
+    }
+
+    // Ensure the user can only delete their own message
+    if (message.senderId.toString() !== userId.toString()) {
+      throw new ApiError(403, 'You can only delete your own messages');
+    }
+
+    const matchId = message.matchId.toString();
+
+    await Message.deleteOne({ _id: messageId });
+
+    // Emit real-time event to update the chat
+    emitToChat(matchId, 'message_deleted', { messageId });
+
+    apiResponse(res, 200, null, 'Message deleted successfully');
+  } catch (error) {
+    console.error('Error in deleteMessage:', error.message);
+    console.error('Error stack:', error.stack);
+    throw error;
+  }
+};
+
 const deleteChat = async (req, res) => {
   const { matchId } = req.params;
   const userId = req.userId;
@@ -187,4 +221,4 @@ const deleteChat = async (req, res) => {
   apiResponse(res, 200, null, 'Chat deleted successfully');
 };
 
-export { getChats, getMessages, sendMessage, sendImageMessage, deleteChat, upload };
+export { getChats, getMessages, sendMessage, sendImageMessage, deleteMessage, deleteChat, upload };

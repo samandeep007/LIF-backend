@@ -52,4 +52,10 @@ router.delete(
   asyncHandler(chatController.deleteChat)
 );
 
+router.delete(
+  '/chats/message/:messageId',
+  authMiddleware,
+  asyncHandler(chatController.deleteMessage)
+);
+
 export default router;
