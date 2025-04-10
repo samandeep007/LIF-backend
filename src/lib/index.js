@@ -70,5 +70,6 @@ export {
   confessionRoutes,
   notificationRoutes,
   statsRoutes,
-  safetyRoutes
+  safetyRoutes,
+  emitToChat
 };
