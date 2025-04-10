@@ -4,20 +4,22 @@ import swaggerUi from 'swagger-ui-express';
 import yaml from 'yamljs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { connectDB, errorMiddleware, authRoutes, userRoutes, swipeRoutes, chatRoutes, callRoutes, confessionRoutes, notificationRoutes, statsRoutes, Message, Call } from './lib/index.js';
+import { createServer } from 'http';
+import { connectDB, errorMiddleware, authRoutes, userRoutes, swipeRoutes, chatRoutes, callRoutes, confessionRoutes, notificationRoutes, statsRoutes, Message, Call, initSocket } from './lib/index.js';
 import schedule from 'node-schedule';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const server = createServer(app);
 
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: '*', // Allow requests from this origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allow these headers
+  origin: ['http://localhost:8081', 'https://your-frontend-domain.com'], // Explicitly allow frontend origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use('/public', express.static(path.join(__dirname, '../public')));
 
@@ -25,6 +27,10 @@ app.use('/public', express.static(path.join(__dirname, '../public')));
 const startServer = async () => {
   try {
     await connectDB();
+
+    // Initialize Socket.IO
+    initSocket(server);
+    console.log('Socket.IO initialized');
 
     // Routes
     app.use('/api/auth', authRoutes);
@@ -61,6 +67,12 @@ const startServer = async () => {
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
     console.log('Server setup complete');
+
+    // Start the server
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   } catch (error) {
     console.error('Failed to start server due to DB connection error:', error.message);
     process.exit(1);
