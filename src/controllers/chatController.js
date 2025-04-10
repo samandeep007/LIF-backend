@@ -45,8 +45,10 @@ const getChats = async (req, res) => {
 
 const getMessages = async (req, res) => {
   const { matchId } = req.params;
-  const { page = 1, limit = 50 } = req.query; // Add pagination parameters
+  const { page = 1, limit = 50 } = req.query;
   const userId = req.userId;
+
+  console.log(`Fetching messages for matchId: ${matchId}, userId: ${userId}, page: ${page}, limit: ${limit}`);
 
   const match = await Match.findOne({
     _id: matchId,
@@ -54,6 +56,7 @@ const getMessages = async (req, res) => {
     isActive: true
   });
   if (!match) {
+    console.log('Match not found');
     throw new ApiError(404, 'Match not found');
   }
 
@@ -63,16 +66,19 @@ const getMessages = async (req, res) => {
   );
 
   const messages = await Message.find({ matchId })
-    .sort({ createdAt: -1 }) // Sort descending to get newest first
+    .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(parseInt(limit))
     .lean();
 
-  // Reverse messages to display oldest first in the UI
+  console.log(`Fetched ${messages.length} messages for matchId: ${matchId}`);
+
   messages.reverse();
 
   apiResponse(res, 200, messages, 'Messages fetched successfully');
 };
+
+// ... (rest of the file remains unchanged)
 
 const sendMessage = async (req, res) => {
   const { matchId, content } = req.body;
