@@ -7,15 +7,27 @@ const upload = multer({ storage }).single('image');
 const getChats = async (req, res) => {
   const userId = req.userId;
 
+  console.log(`Fetching chats for userId: ${userId}`);
+
   const matches = await Match.find({
     $or: [{ user1Id: userId }, { user2Id: userId }],
     isActive: true
   }).populate('user1Id user2Id');
 
+  console.log(`Found ${matches.length} active matches for userId: ${userId}`);
+
   const chats = await Promise.all(
     matches.map(async (match) => {
       const otherUserId = match.user1Id._id.toString() === userId.toString() ? match.user2Id._id : match.user1Id._id;
-      const otherUser = await User.findById(otherUserId).select('name photos');
+      console.log(`Fetching other user with ID: ${otherUserId}`);
+      const otherUser = await User.findById(otherUserId).select('name photos selfie');
+
+      console.log(`Other user data:`, {
+        id: otherUser._id,
+        name: otherUser.name,
+        selfie: otherUser.selfie,
+        photos: otherUser.photos
+      });
 
       const lastMessage = await Message.findOne({ matchId: match._id })
         .sort({ createdAt: -1 })
@@ -27,7 +39,7 @@ const getChats = async (req, res) => {
         readStatus: false
       });
 
-      return {
+      const chat = {
         matchId: match._id,
         otherUser: {
           id: otherUser._id,
@@ -37,9 +49,14 @@ const getChats = async (req, res) => {
         lastMessage: lastMessage ? { content: lastMessage.content, createdAt: lastMessage.createdAt, isImage: lastMessage.isImage } : null,
         unreadCount
       };
+
+      console.log(`Chat item created:`, chat);
+
+      return chat;
     })
   );
 
+  console.log(`Returning ${chats.length} chats for userId: ${userId}`);
   apiResponse(res, 200, chats, 'Chats fetched successfully');
 };
 
@@ -77,8 +94,6 @@ const getMessages = async (req, res) => {
 
   apiResponse(res, 200, messages, 'Messages fetched successfully');
 };
-
-// ... (rest of the file remains unchanged)
 
 const sendMessage = async (req, res) => {
   const { matchId, content } = req.body;
