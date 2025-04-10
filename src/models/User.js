@@ -7,8 +7,8 @@ const UserSchema = new mongoose.Schema({
   age: { type: Number, required: true },
   gender: { type: String, required: true },
   bio: { type: String, maxLength: 500, default: '' },
-  photos: [{ url: String, caption: String }],
-  selfie: { type: String, default: '' }, // Added for selfie verification
+  photos: [{ url: String, caption: String, _id: { type: mongoose.Schema.Types.ObjectId, auto: true } }], // Ensure _id is defined for subdocuments
+  selfie: { type: String, default: '' },
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },
   resetPasswordToken: { type: String },

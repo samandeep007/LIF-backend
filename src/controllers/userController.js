@@ -95,6 +95,9 @@ const addPhoto = async (req, res) => {
   user.photos.push({ url: photoUrl, caption: req.body.caption || '' });
   console.log('Photos array before save:', user.photos);
 
+  // Explicitly mark the photos array as modified
+  user.markModified('photos');
+
   try {
     await user.save();
     console.log('User after save (in-memory):', user);
