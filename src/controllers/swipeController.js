@@ -16,7 +16,10 @@ const getPotentialMatches = async (req, res) => {
       $gte: user.filterPreferences.ageRange.min,
       $lte: user.filterPreferences.ageRange.max
     },
-    photos: { $exists: true, $ne: [] } // Ensure the user has at least one photo
+    $or: [
+      { photos: { $exists: true, $ne: [] } }, // Has at least one photo
+      { selfie: { $exists: true, $ne: null } } // Has a selfie
+    ]
   };
 
   if (user.filterPreferences.seekingGender !== 'any') {
@@ -40,7 +43,7 @@ const getPotentialMatches = async (req, res) => {
   }
 
   const matches = await User.find(query)
-    .select('name age gender bio photos selfie') // Added selfie to the selected fields
+    .select('name age gender bio photos selfie')
     .limit(10);
 
   apiResponse(res, 200, matches, 'Potential matches fetched successfully');
