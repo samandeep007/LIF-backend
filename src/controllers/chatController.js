@@ -105,57 +105,63 @@ const sendMessage = async (req, res) => {
 };
 
 const sendImageMessage = async (req, res) => {
-  console.log('Received request to /api/chats/image-message');
-  const { matchId } = req.body;
-  const userId = req.userId;
+  try {
+    console.log('Received request to /api/chats/image-message');
+    const { matchId } = req.body;
+    const userId = req.userId;
 
-  console.log('Match ID:', matchId);
-  console.log('User ID:', userId);
+    console.log('Match ID:', matchId);
+    console.log('User ID:', userId);
 
-  const match = await Match.findOne({
-    _id: matchId,
-    $or: [{ user1Id: userId }, { user2Id: userId }],
-    isActive: true
-  });
-  if (!match) {
-    console.log('Match not found');
-    throw new ApiError(404, 'Match not found');
+    const match = await Match.findOne({
+      _id: matchId,
+      $or: [{ user1Id: userId }, { user2Id: userId }],
+      isActive: true
+    });
+    if (!match) {
+      console.log('Match not found');
+      throw new ApiError(404, 'Match not found');
+    }
+
+    if (!req.file) {
+      console.log('No image uploaded');
+      throw new ApiError(400, 'No image uploaded');
+    }
+
+    console.log('Received file:', req.file);
+
+    const imageUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+    console.log('Image uploaded to Cloudinary:', imageUrl);
+
+    const message = new Message({
+      matchId,
+      senderId: userId,
+      content: imageUrl,
+      isImage: true
+    });
+    await message.save();
+    console.log('Message saved:', message);
+
+    // Trigger notification for the other user
+    const receiverId = match.user1Id.toString() === userId.toString() ? match.user2Id : match.user1Id;
+    const notification = await Notification.create({
+      userId: receiverId,
+      type: 'new_message',
+      content: 'You have a new image message!',
+      metadata: { matchId, senderId: userId }
+    });
+    console.log('Notification created:', notification);
+
+    // Emit real-time events
+    emitToChat(matchId.toString(), 'new_message', message);
+    emitToUser(receiverId.toString(), 'new_notification', notification);
+
+    apiResponse(res, 200, message, 'Image message sent successfully');
+  } catch (error) {
+    console.error('Error in sendImageMessage:', error.message);
+    console.error('Error stack:', error.stack);
+    throw error; // Ensure the error is passed to the error middleware
   }
-
-  if (!req.file) {
-    console.log('No image uploaded');
-    throw new ApiError(400, 'No image uploaded');
-  }
-
-  console.log('Received file:', req.file);
-
-  const imageUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
-  console.log('Image uploaded to Cloudinary:', imageUrl);
-
-  const message = new Message({
-    matchId,
-    senderId: userId,
-    content: imageUrl,
-    isImage: true
-  });
-  await message.save();
-  console.log('Message saved:', message);
-
-  // Trigger notification for the other user
-  const receiverId = match.user1Id.toString() === userId.toString() ? match.user2Id : match.user1Id;
-  const notification = await Notification.create({
-    userId: receiverId,
-    type: 'new_message',
-    content: 'You have a new image message!',
-    metadata: { matchId, senderId: userId }
-  });
-  console.log('Notification created:', notification);
-
-  // Emit real-time events
-  emitToChat(matchId.toString(), 'new_message', message);
-  emitToUser(receiverId.toString(), 'new_notification', notification);
-
-  apiResponse(res, 200, message, 'Image message sent successfully');
 };
 
 const deleteChat = async (req, res) => {
