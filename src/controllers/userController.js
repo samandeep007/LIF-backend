@@ -2,13 +2,8 @@ import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { User, ApiError, apiResponse, uploadToCloudinary, deleteTempFile } from '../lib/index.js';
 
-// Multer setup for temporary file storage
-const storage = multer.diskStorage({
-  destination: 'public/temp',
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
+// Multer setup for in-memory storage (for Render compatibility)
+const storage = multer.memoryStorage();
 const upload = multer({ storage }).single('photo');
 
 const getProfile = async (req, res) => {
@@ -83,11 +78,16 @@ const addPhoto = async (req, res) => {
     throw new ApiError(400, 'Maximum 9 photos allowed');
   }
 
-  // Upload to Cloudinary
-  const photoUrl = await uploadToCloudinary(req.file.path);
+  console.log('Received file:', req.file); // Debug log
+  console.log('Received body:', req.body); // Debug log
 
-  // Delete temp file
-  await deleteTempFile(req.file.path);
+  if (!req.file) {
+    throw new ApiError(400, 'No photo uploaded');
+  }
+
+  // Since we're using memoryStorage, the file is in req.file.buffer
+  // Upload to Cloudinary directly from buffer
+  const photoUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
 
   // Add photo to user
   user.photos.push({ url: photoUrl, caption: req.body.caption || '' });
