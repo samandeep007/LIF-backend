@@ -97,13 +97,17 @@ const addPhoto = async (req, res) => {
 
   try {
     await user.save();
-    console.log('User after save:', user);
+    console.log('User after save (in-memory):', user);
     // Fetch the user again from the database to confirm the update
     const updatedUser = await User.findById(req.userId);
     console.log('User fetched from database after save:', updatedUser);
+    if (!updatedUser.photos.some(photo => photo.url === photoUrl)) {
+      console.error('Photo URL not found in user document after save:', photoUrl);
+      throw new ApiError(500, 'Failed to save photo to user profile');
+    }
   } catch (error) {
     console.error('Error saving user:', error);
-    throw new ApiError(500, 'Failed to save photo to user profile');
+    throw new ApiError(500, 'Failed to save photo to user profile: ' + error.message);
   }
 
   apiResponse(res, 200, { url: photoUrl }, 'Photo added successfully');
