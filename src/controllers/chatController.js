@@ -19,7 +19,7 @@ const getChats = async (req, res) => {
 
       const lastMessage = await Message.findOne({ matchId: match._id })
         .sort({ createdAt: -1 })
-        .select('content createdAt');
+        .select('content createdAt isImage'); // Add isImage to the selected fields
 
       const unreadCount = await Message.countDocuments({
         matchId: match._id,
@@ -34,7 +34,7 @@ const getChats = async (req, res) => {
           name: otherUser.name,
           photo: otherUser.photos[0]?.url || ''
         },
-        lastMessage: lastMessage ? { content: lastMessage.content, createdAt: lastMessage.createdAt } : null,
+        lastMessage: lastMessage ? { content: lastMessage.content, createdAt: lastMessage.createdAt, isImage: lastMessage.isImage } : null,
         unreadCount
       };
     })
@@ -42,6 +42,8 @@ const getChats = async (req, res) => {
 
   apiResponse(res, 200, chats, 'Chats fetched successfully');
 };
+
+// ... (rest of the file remains unchanged)
 
 const getMessages = async (req, res) => {
   const { matchId } = req.params;
@@ -160,7 +162,7 @@ const sendImageMessage = async (req, res) => {
   } catch (error) {
     console.error('Error in sendImageMessage:', error.message);
     console.error('Error stack:', error.stack);
-    throw error; // Ensure the error is passed to the error middleware
+    throw error;
   }
 };
 
