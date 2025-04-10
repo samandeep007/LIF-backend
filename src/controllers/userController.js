@@ -29,6 +29,7 @@ const editProfile = async (req, res) => {
   if (bio) user.bio = bio;
 
   await user.save();
+  console.log('User after bio update:', user); // Debug log
 
   const updatedUser = user.toObject();
   delete updatedUser.password;
@@ -78,8 +79,8 @@ const addPhoto = async (req, res) => {
     throw new ApiError(400, 'Maximum 9 photos allowed');
   }
 
-  console.log('Received file:', req.file); // Debug log
-  console.log('Received body:', req.body); // Debug log
+  console.log('Received file:', req.file);
+  console.log('Received body:', req.body);
 
   if (!req.file) {
     throw new ApiError(400, 'No photo uploaded');
@@ -92,6 +93,7 @@ const addPhoto = async (req, res) => {
   // Add photo to user
   user.photos.push({ url: photoUrl, caption: req.body.caption || '' });
   await user.save();
+  console.log('User after photo update:', user); // Debug log
 
   apiResponse(res, 200, { url: photoUrl }, 'Photo added successfully');
 };
