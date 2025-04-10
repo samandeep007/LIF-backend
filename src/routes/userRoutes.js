@@ -8,7 +8,6 @@ const router = Router();
 const validateEditProfile = [
   check('name').optional().notEmpty().withMessage('Name cannot be empty'),
   check('age').optional().isInt({ min: 18 }).withMessage('Age must be a number and at least 18'),
-  check('gender').optional().notEmpty().withMessage('Gender cannot be empty'),
   check('bio').optional().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters')
 ];
 
@@ -65,6 +64,13 @@ router.delete(
   '/photos/:photoId',
   authMiddleware,
   asyncHandler(userController.deletePhoto)
+);
+
+router.post(
+  '/profile-pic',
+  authMiddleware,
+  userController.upload,
+  asyncHandler(userController.updateProfilePic)
 );
 
 export default router;

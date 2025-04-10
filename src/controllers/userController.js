@@ -135,4 +135,42 @@ const deletePhoto = async (req, res) => {
   apiResponse(res, 200, null, 'Photo deleted successfully');
 };
 
-export { getProfile, editProfile, changePassword, deleteProfile, upload, addPhoto, deletePhoto };
+const updateProfilePic = async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  console.log('Received file:', req.file);
+  console.log('Received body:', req.body);
+
+  if (!req.file) {
+    throw new ApiError(400, 'No photo uploaded');
+  }
+
+  // Upload to Cloudinary directly from buffer
+  const photoUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
+  console.log('Profile picture uploaded to Cloudinary:', photoUrl);
+
+  // Update the user's selfie field
+  user.selfie = photoUrl;
+
+  try {
+    await user.save();
+    console.log('User after save (in-memory):', user);
+    // Fetch the user again from the database to confirm the update
+    const updatedUser = await User.findById(req.userId);
+    console.log('User fetched from database after save:', updatedUser);
+    if (updatedUser.selfie !== photoUrl) {
+      console.error('Profile picture URL not found in user document after save:', photoUrl);
+      throw new ApiError(500, 'Failed to save profile picture to user profile');
+    }
+  } catch (error) {
+    console.error('Error saving user:', error);
+    throw new ApiError(500, 'Failed to save profile picture to user profile: ' + error.message);
+  }
+
+  apiResponse(res, 200, { selfieUrl: photoUrl }, 'Profile picture updated successfully');
+};
+
+export { getProfile, editProfile, changePassword, deleteProfile, upload, addPhoto, deletePhoto, updateProfilePic };
