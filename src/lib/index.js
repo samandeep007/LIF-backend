@@ -14,7 +14,7 @@ import apiResponse from '../utils/apiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import errorMiddleware from '../middlewares/errorMiddleware.js';
-import { initSocket, emitToUser } from '../utils/socket.js';
+import { initSocket, emitToUser, emitToChat } from '../utils/socket.js';
 import * as authController from '../controllers/authController.js';
 import * as userController from '../controllers/userController.js';
 import * as swipeController from '../controllers/swipeController.js';
