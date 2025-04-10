@@ -62,6 +62,23 @@ const initSocket = (server) => {
       }
     });
 
+    // WebRTC signaling events
+    socket.on('offer', ({ callId, offer, toUserId }) => {
+      socket.to(toUserId).emit('offer', { callId, offer, fromUserId: socket.userId });
+    });
+
+    socket.on('answer', ({ callId, answer, toUserId }) => {
+      socket.to(toUserId).emit('answer', { callId, answer, fromUserId: socket.userId });
+    });
+
+    socket.on('ice-candidate', ({ callId, candidate, toUserId }) => {
+      socket.to(toUserId).emit('ice-candidate', { callId, candidate, fromUserId: socket.userId });
+    });
+
+    socket.on('end-call', ({ callId, toUserId }) => {
+      socket.to(toUserId).emit('call_ended', { callId });
+    });
+
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${socket.userId}`);
     });
