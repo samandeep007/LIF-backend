@@ -1,12 +1,7 @@
 import { Match, Message, User, Notification, ApiError, apiResponse, emitToChat, emitToUser } from '../lib/index.js';
 import multer from 'multer';
 
-const storage = multer.diskStorage({
-  destination: 'public/temp',
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  }
-});
+const storage = multer.memoryStorage(); // Use memoryStorage for Render compatibility
 const upload = multer({ storage }).single('image');
 
 const getChats = async (req, res) => {
@@ -103,7 +98,7 @@ const sendMessage = async (req, res) => {
   });
 
   // Emit real-time events
-  emitToChat(matchId.toString(), 'new_message', message); // Emit to chat room
+  emitToChat(matchId.toString(), 'new_message', message);
   emitToUser(receiverId.toString(), 'new_notification', notification);
 
   apiResponse(res, 200, message, 'Message sent successfully');
@@ -122,8 +117,11 @@ const sendImageMessage = async (req, res) => {
     throw new ApiError(404, 'Match not found');
   }
 
-  const imageUrl = await uploadToCloudinary(req.file.path);
-  await deleteTempFile(req.file.path);
+  if (!req.file) {
+    throw new ApiError(400, 'No image uploaded');
+  }
+
+  const imageUrl = await uploadToCloudinary(req.file.buffer, req.file.originalname);
 
   const message = new Message({
     matchId,
@@ -143,7 +141,7 @@ const sendImageMessage = async (req, res) => {
   });
 
   // Emit real-time events
-  emitToChat(matchId.toString(), 'new_message', message); // Emit to chat room
+  emitToChat(matchId.toString(), 'new_message', message);
   emitToUser(receiverId.toString(), 'new_notification', notification);
 
   apiResponse(res, 200, message, 'Image message sent successfully');
