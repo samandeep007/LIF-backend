@@ -10,6 +10,10 @@ const validateInitiateCall = [
   check('type').isIn(['audio', 'video']).withMessage('Invalid call type')
 ];
 
+const validateCallAction = [
+  check('callId').notEmpty().withMessage('Call ID is required').matches(/^[0-9a-fA-F]{24}$/).withMessage('Invalid call ID')
+];
+
 const checkValidation = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -25,6 +29,22 @@ router.post(
   validateInitiateCall,
   checkValidation,
   asyncHandler(callController.initiateCall)
+);
+
+router.post(
+  '/calls/accept',
+  authMiddleware,
+  validateCallAction,
+  checkValidation,
+  asyncHandler(callController.acceptCall)
+);
+
+router.post(
+  '/calls/reject',
+  authMiddleware,
+  validateCallAction,
+  checkValidation,
+  asyncHandler(callController.rejectCall)
 );
 
 router.get(

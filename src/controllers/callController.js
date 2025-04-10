@@ -51,6 +51,61 @@ const initiateCall = async (req, res) => {
   apiResponse(res, 200, { callId: call._id }, 'Call initiated successfully');
 };
 
+const acceptCall = async (req, res) => {
+  const { callId } = req.body;
+  const userId = req.userId;
+
+  const call = await Call.findOne({
+    _id: callId,
+    receiverId: userId,
+    status: 'pending'
+  });
+  if (!call) {
+    throw new ApiError(404, 'Call not found or not in pending state');
+  }
+
+  call.status = 'active';
+  call.startTime = new Date();
+  await call.save();
+
+  // Emit real-time event to the initiator
+  emitToUser(call.initiatorId.toString(), 'call_accepted', {
+    callId: call._id,
+    matchId: call.matchId.toString(),
+    receiverId: userId,
+    callType: call.type
+  });
+
+  apiResponse(res, 200, { callId: call._id }, 'Call accepted successfully');
+};
+
+const rejectCall = async (req, res) => {
+  const { callId } = req.body;
+  const userId = req.userId;
+
+  const call = await Call.findOne({
+    _id: callId,
+    receiverId: userId,
+    status: 'pending'
+  });
+  if (!call) {
+    throw new ApiError(404, 'Call not found or not in pending state');
+  }
+
+  call.status = 'ended';
+  call.endTime = new Date();
+  await call.save();
+
+  // Emit real-time event to the initiator
+  emitToUser(call.initiatorId.toString(), 'call_rejected', {
+    callId: call._id,
+    matchId: call.matchId.toString(),
+    receiverId: userId
+  });
+
+  apiResponse(res, 200, null, 'Call rejected successfully');
+};
+
 const getCallStatus = async (req, res) => {
   const { matchId } = req.params;
   const userId = req.userId;
@@ -108,4 +163,4 @@ const endCall = async (req, res) => {
   apiResponse(res, 200, null, 'Call ended successfully');
 };
 
-export { initiateCall, getCallStatus, endCall };
+export { initiateCall, acceptCall, rejectCall, getCallStatus, endCall };
