@@ -63,8 +63,8 @@ const verifyEmail = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
 
-  // Find user
-  const user = await User.findOne({ email });
+  // Find user with case-insensitive email
+  const user = await User.findOne({ email: { $regex: `^${email}$`, $options: 'i' } });
   if (!user) {
     throw new ApiError(400, 'Invalid email or password');
   }
