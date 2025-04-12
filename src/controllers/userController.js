@@ -213,4 +213,19 @@ const updateProfilePic = async (req, res) => {
   apiResponse(res, 200, { selfieUrl: photoUrl }, 'Profile picture updated successfully');
 };
 
-export { getProfile, editProfile, changePassword, deleteProfile, upload, addPhoto, deletePhoto, updateProfilePic };
+const getUserById = async (req, res) => {
+  console.log(`Received GET request to /api/users/${req.params.userId} for requesting userId: ${req.userId}`);
+  const { userId } = req.params;
+
+  // Ensure the user exists
+  const user = await User.findById(userId).select('-password -verificationToken -resetPasswordToken -resetPasswordExpires');
+  if (!user) {
+    console.log('User not found');
+    throw new ApiError(404, 'User not found');
+  }
+
+  console.log('User profile fetched successfully:', user);
+  apiResponse(res, 200, user, 'User profile fetched successfully');
+};
+
+export { getProfile, editProfile, changePassword, deleteProfile, upload, addPhoto, deletePhoto, updateProfilePic, getUserById };

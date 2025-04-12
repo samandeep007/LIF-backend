@@ -86,6 +86,8 @@ router.delete(
   asyncHandler(userController.deletePhoto)
 );
 
+router.get('/:userId', authMiddleware, asyncHandler(userController.getUserById));
+
 router.post(
   '/profile-pic',
   authMiddleware,
