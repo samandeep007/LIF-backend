@@ -15,7 +15,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:8081', 'https://love-is-free--s9qd24wn1s.expo.app'], // Explicitly allow frontend origins
+  origin: ['http://localhost:8081', 'https://love-is-free--1ab88dhp7i.expo.app'], // Explicitly allow frontend origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
